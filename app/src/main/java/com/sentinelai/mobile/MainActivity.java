@@ -209,7 +209,7 @@ public class MainActivity extends Activity {
     private Button actionButton(String title, String detail, boolean primary, View.OnClickListener listener) {
         Button b = new Button(this);
         b.setText(title + "\n" + detail);
-        b.setTextAllCaps(false);
+        b.setAllCaps(false);
         b.setTextSize(14);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         b.setTextColor(primary ? 0xFF06202A : TEXT);
