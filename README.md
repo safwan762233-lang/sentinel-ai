@@ -34,13 +34,13 @@ APK output: `app/build/outputs/apk/debug/app-debug.apk`.
 - A declared permission is a review indicator, not evidence of spying.
 - The file picker only grants access to files the user selects.
 - ZIP/APK structure checks are heuristic. A valid-looking archive may still be malicious; an unusual archive is not automatically malicious.
-- This MVP has no malware signature database, dynamic sandbox, cloud reputation lookup, or guaranteed detection.
+- The starter hash pack currently contains only the EICAR antivirus test-file hash. EICAR is a harmless test pattern, not malware; this validates the matching engine but is not a real malware threat feed. The app has no dynamic sandbox, cloud reputation lookup, or guaranteed detection.
 - `QUERY_ALL_PACKAGES` is sensitive and subject to Google Play policy review. Distribution may need a narrower app-visibility design.
 - Enterprise EDR/SIEM capabilities require separately deployed, authorized agents and backend services.
 
 ## Roadmap
 1. Android app inventory and local file structure checks (current MVP).
-2. Signed local hash/signature intelligence packs and safe quarantine workflow.
+2. Expand the hash/signature intelligence pack using vetted, licensed indicators; add pack authenticity/expiry checks and a user-approved safe quarantine workflow.
 3. Behavior signals supported by Android APIs, with explicit consent.
 4. Enterprise backend, device enrollment, RBAC, audit trail, alert pipeline.
 5. Independent security review, privacy review, and production release signing.
