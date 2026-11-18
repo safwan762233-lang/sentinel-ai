@@ -5,13 +5,18 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -29,74 +34,231 @@ public class MainActivity extends Activity {
     private static final int PICK_FILE = 41;
     private static final long MAX_FILE_BYTES = 100L * 1024L * 1024L;
     private static final int MAX_ARCHIVE_ENTRIES = 3000;
+
+    private static final int BG = 0xFF071321;
+    private static final int PANEL = 0xFF102538;
+    private static final int PANEL_ALT = 0xFF142D42;
+    private static final int TEXT = 0xFFF4F8FC;
+    private static final int MUTED = 0xFFA9BACB;
+    private static final int CYAN = 0xFF39D6D0;
+    private static final int GREEN = 0xFF79E0B2;
+    private static final int AMBER = 0xFFFFD18A;
+
     private LinearLayout content;
+    private LinearLayout resultsContainer;
     private TextView status;
+    private ProgressBar progress;
+    private Button appsButton;
+    private Button fileButton;
 
     private static final String[] REVIEW_PERMISSIONS = {
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.READ_SMS",
-        "android.permission.RECEIVE_SMS",
-        "android.permission.READ_CONTACTS",
-        "android.permission.READ_CALL_LOG",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.READ_PHONE_STATE",
-        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.RECORD_AUDIO", "android.permission.CAMERA",
+        "android.permission.READ_SMS", "android.permission.RECEIVE_SMS",
+        "android.permission.READ_CONTACTS", "android.permission.READ_CALL_LOG",
+        "android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.READ_PHONE_STATE", "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.SYSTEM_ALERT_WINDOW"
     };
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
         buildUi();
     }
 
-    private void buildUi() {
-        ScrollView scroll = new ScrollView(this);
-        content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(36, 42, 36, 48);
-        content.setBackgroundColor(0xFF0B1020);
-        scroll.addView(content);
-        setContentView(scroll);
-
-        content.addView(text("SENTINEL AI", 28, 0xFFFFFFFF));
-        content.addView(text("Mobile Security • Local-first MVP", 14, 0xFF9EACC7));
-        status = text("Ready. Checks run on this device.", 14, 0xFF9FE3C0);
-        status.setPadding(0, 24, 0, 24);
-        content.addView(status);
-        addButton("Scan installed apps", v -> scanApps());
-        addButton("Analyze a file (user-selected)", v -> pickFile());
-        addButton("About detection limits", v -> showLimits());
-        content.addView(text("Privacy: no account, no upload, no automatic deletion. Findings are indicators, not proof of malware.", 13, 0xFFB7C2D8));
+    private GradientDrawable shape(int color, int radiusDp, int strokeColor) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(radiusDp * getResources().getDisplayMetrics().density);
+        if (strokeColor != 0) d.setStroke((int)(1 * getResources().getDisplayMetrics().density), strokeColor);
+        return d;
     }
 
-    private TextView text(String value, int size, int color) {
+    private int dp(int value) {
+        return (int)(value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private LinearLayout column() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.VERTICAL);
+        return l;
+    }
+
+    private LinearLayout row() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.HORIZONTAL);
+        l.setGravity(Gravity.CENTER_VERTICAL);
+        return l;
+    }
+
+    private TextView label(String value, int size, int color, boolean bold) {
         TextView t = new TextView(this);
         t.setText(value);
         t.setTextSize(size);
         t.setTextColor(color);
-        t.setPadding(0, 8, 0, 8);
+        if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        t.setIncludeFontPadding(true);
         return t;
     }
 
-    private void addButton(String label, View.OnClickListener listener) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setAllCaps(false);
-        b.setOnClickListener(listener);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
-        p.setMargins(0, 12, 0, 12);
-        content.addView(b, p);
+    private void gap(LinearLayout parent, int height) {
+        View v = new View(this);
+        parent.addView(v, new LinearLayout.LayoutParams(1, dp(height)));
     }
 
-    private void heading(String value) {
-        content.addView(text(value, 18, 0xFF78B7FF));
+    private LinearLayout card() {
+        LinearLayout c = column();
+        c.setPadding(dp(18), dp(16), dp(18), dp(16));
+        c.setBackground(shape(PANEL, 20, 0xFF244258));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.bottomMargin = dp(14);
+        content.addView(c, p);
+        return c;
+    }
+
+    private void buildUi() {
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BG);
+        content = column();
+        content.setPadding(dp(20), dp(22), dp(20), dp(30));
+        scroll.addView(content);
+        setContentView(scroll);
+
+        LinearLayout top = row();
+        TextView brand = label("SENTINEL", 27, TEXT, true);
+        top.addView(brand);
+        TextView ai = label("  AI", 27, CYAN, true);
+        top.addView(ai);
+        content.addView(top);
+        gap(content, 3);
+        content.addView(label("MOBILE SECURITY  •  LOCAL-FIRST", 11, MUTED, true));
+        gap(content, 18);
+
+        LinearLayout statusCard = card();
+        LinearLayout statusRow = row();
+        TextView dot = label("●", 17, GREEN, true);
+        statusRow.addView(dot);
+        TextView statusTitle = label("  DEVICE CHECKS READY", 12, GREEN, true);
+        statusRow.addView(statusTitle);
+        statusCard.addView(statusRow);
+        gap(statusCard, 7);
+        status = label("Your scans run on this phone. Files are not uploaded.", 13, MUTED, false);
+        status.setLineSpacing(dp(2), 1f);
+        statusCard.addView(status);
+
+        LinearLayout section = row();
+        TextView sectionTitle = label("Security centre", 21, TEXT, true);
+        section.addView(sectionTitle);
+        content.addView(section);
+        gap(content, 5);
+        content.addView(label("Choose a check to run. Results explain what was inspected.", 13, MUTED, false));
+        gap(content, 14);
+
+        LinearLayout scanCard = card();
+        scanCard.setBackground(shape(PANEL_ALT, 22, 0xFF2C6374));
+        scanCard.addView(label("QUICK ACTIONS", 11, CYAN, true));
+        gap(scanCard, 8);
+        appsButton = actionButton("Scan installed apps", "Review visible apps and selected sensitive permission declarations", true, v -> scanApps());
+        scanCard.addView(appsButton);
+        gap(scanCard, 10);
+        fileButton = actionButton("Analyze a file", "Check a file you choose: SHA-256, YARA-X and archive structure", false, v -> pickFile());
+        scanCard.addView(fileButton);
+
+        LinearLayout info = card();
+        info.addView(label("WHAT THIS VERSION CAN CHECK", 11, CYAN, true));
+        gap(info, 10);
+        addCapability(info, "01", "App permission review", "Find apps declaring selected sensitive permissions.");
+        addCapability(info, "02", "Local file analysis", "Calculate SHA-256 and inspect selected files.");
+        addCapability(info, "03", "YARA-X test rules", "Run the bundled validation rules on supported files.");
+        addCapability(info, "04", "ZIP / APK structure", "Check basic archive structure and suspicious paths.");
+
+        LinearLayout privacy = card();
+        privacy.addView(label("PRIVATE BY DESIGN", 14, TEXT, true));
+        gap(5);
+        privacy.addView(label("No account • No cloud upload • No automatic deletion", 12, MUTED, false));
+        gap(8);
+        privacy.addView(label("A clean result does not prove a device or file is malware-free. Android limits what a normal app can inspect.", 12, MUTED, false));
+
+        TextView limits = label("Detection limits & app information  →", 13, CYAN, true);
+        limits.setPadding(0, dp(8), 0, dp(18));
+        limits.setOnClickListener(v -> showLimits());
+        content.addView(limits);
+
+        TextView resultHeading = label("LATEST RESULT", 11, CYAN, true);
+        content.addView(resultHeading);
+        gap(content, 8);
+        resultsContainer = column();
+        content.addView(resultsContainer);
+        resultsContainer.addView(label("No scan run yet. Start with one of the checks above.", 13, MUTED, false));
+    }
+
+    private void addCapability(LinearLayout parent, String number, String title, String detail) {
+        LinearLayout r = row();
+        TextView n = label(number, 12, CYAN, true);
+        r.addView(n, new LinearLayout.LayoutParams(dp(34), -2));
+        LinearLayout c = column();
+        c.addView(label(title, 14, TEXT, true));
+        c.addView(label(detail, 12, MUTED, false));
+        r.addView(c, new LinearLayout.LayoutParams(0, -2, 1));
+        parent.addView(r);
+        gap(parent, 13);
+    }
+
+    private Button actionButton(String title, String detail, boolean primary, View.OnClickListener listener) {
+        Button b = new Button(this);
+        b.setText(title + "\n" + detail);
+        b.setTextAllCaps(false);
+        b.setTextSize(14);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        b.setTextColor(primary ? 0xFF06202A : TEXT);
+        b.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
+        b.setPadding(dp(16), dp(9), dp(16), dp(9));
+        b.setMinHeight(dp(68));
+        b.setBackground(shape(primary ? CYAN : 0xFF203B50, 16, primary ? 0 : 0xFF31546A));
+        b.setOnClickListener(listener);
+        return b;
+    }
+
+    private void setBusy(String message) {
+        status.setText(message);
+        if (progress == null) {
+            progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+            progress.setIndeterminate(true);
+            progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(CYAN));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(4));
+            p.topMargin = dp(10);
+            content.addView(progress, Math.max(0, content.indexOfChild(resultsContainer) - 1), p);
+        }
+        progress.setVisibility(View.VISIBLE);
+        if (appsButton != null) appsButton.setEnabled(false);
+        if (fileButton != null) fileButton.setEnabled(false);
+    }
+
+    private void finishBusy(String message) {
+        status.setText(message);
+        if (progress != null) progress.setVisibility(View.GONE);
+        if (appsButton != null) appsButton.setEnabled(true);
+        if (fileButton != null) fileButton.setEnabled(true);
+    }
+
+    private void showResult(String title, String body, boolean warning) {
+        resultsContainer.removeAllViews();
+        LinearLayout c = column();
+        c.setPadding(dp(16), dp(14), dp(16), dp(14));
+        c.setBackground(shape(PANEL, 16, warning ? 0xFF8B7045 : 0xFF31546A));
+        c.addView(label(title, 15, warning ? AMBER : GREEN, true));
+        gap(c, 8);
+        TextView detail = label(body, 12, TEXT, false);
+        detail.setTextIsSelectable(true);
+        detail.setLineSpacing(dp(3), 1f);
+        c.addView(detail);
+        resultsContainer.addView(c);
     }
 
     private void scanApps() {
-        heading("Installed app permission review");
-        status.setText("Scanning installed app declarations…");
+        setBusy("Reviewing installed app declarations…");
         new Thread(() -> {
             List<String> findings = new ArrayList<>();
             PackageManager pm = getPackageManager();
@@ -117,24 +279,30 @@ public class MainActivity extends Activity {
                         }
                     }
                     if (!matched.isEmpty()) {
-                        String label;
-                        try {
-                            label = pm.getApplicationLabel(info.applicationInfo).toString();
-                        } catch (Exception e) {
-                            label = info.packageName;
-                        }
-                        findings.add(label + " (" + info.packageName + ")\nDeclared sensitive permissions: " + join(matched)
-                                + "\nCheck whether these match the app's purpose. Declaration alone is not proof of misuse.");
+                        String appLabel;
+                        try { appLabel = pm.getApplicationLabel(info.applicationInfo).toString(); }
+                        catch (Exception e) { appLabel = info.packageName; }
+                        findings.add(appLabel + " (" + info.packageName + ")\nDeclared: " + join(matched)
+                                + "\nPermission declarations need context; they do not prove misuse.");
                     }
                 }
                 Collections.sort(findings);
+                StringBuilder report = new StringBuilder();
+                report.append("Visible packages checked: ").append(packages.size())
+                      .append("\nApps needing permission review: ").append(findings.size());
+                for (String item : findings) report.append("\n\n").append(item);
+                if (findings.isEmpty()) report.append("\nNo matching declarations found in the visible app list.");
+                report.append("\n\nThis check reviews declarations only. It does not inspect private app data or actual runtime use.");
+                String result = report.toString();
                 runOnUiThread(() -> {
-                    status.setText("Review complete: " + packages.size() + " visible packages; " + findings.size() + " app(s) to review.");
-                    if (findings.isEmpty()) content.addView(text("No matching permission declarations found.", 14, 0xFF9FE3C0));
-                    for (String item : findings) content.addView(text("• " + item, 13, 0xFFE8D7A8));
+                    finishBusy("App permission review complete.");
+                    showResult("App review complete", result, !findings.isEmpty());
                 });
             } catch (Exception e) {
-                runOnUiThread(() -> status.setText("Scan unavailable: " + e.getClass().getSimpleName()));
+                runOnUiThread(() -> {
+                    finishBusy("App review could not be completed.");
+                    showResult("Scan unavailable", e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()), true);
+                });
             }
         }).start();
     }
@@ -159,7 +327,7 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != PICK_FILE || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
-        status.setText("Analyzing selected file locally…");
+        setBusy("Analyzing your selected file locally…");
         new Thread(() -> analyzeFile(uri)).start();
     }
 
@@ -180,8 +348,7 @@ public class MainActivity extends Activity {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             long total = 0;
             byte[] buffer = new byte[8192];
-            int firstByte = -1;
-            int secondByte = -1;
+            int firstByte = -1, secondByte = -1;
             try (InputStream in = getContentResolver().openInputStream(uri)) {
                 if (in == null) throw new IllegalStateException("Cannot open selected file");
                 int n;
@@ -201,84 +368,78 @@ public class MainActivity extends Activity {
             String yaraResult = YaraEngine.scanSelectedFile(this, uri);
 
             boolean zipMagic = firstByte == 0x50 && secondByte == 0x4b;
-            boolean apkName = lower.endsWith(".apk");
-            boolean zipName = lower.endsWith(".zip");
+            boolean apkName = lower.endsWith(".apk"), zipName = lower.endsWith(".zip");
             List<String> findings = new ArrayList<>();
-            if (apkName && !zipMagic) findings.add("Extension says APK, but ZIP signature was not found.");
-            if (zipName && !zipMagic) findings.add("Extension says ZIP, but ZIP signature was not found.");
-            if (!apkName && !zipName && zipMagic) findings.add("File content looks like a ZIP archive although its extension is different.");
+            if (apkName && !zipMagic) findings.add("APK extension but ZIP signature not found.");
+            if (zipName && !zipMagic) findings.add("ZIP extension but ZIP signature not found.");
+            if (!apkName && !zipName && zipMagic) findings.add("ZIP content found with a different extension.");
             int entries = 0;
-            boolean hasManifest = false;
-            boolean hasDex = false;
-            boolean traversal = false;
-            boolean nestedExecutable = false;
+            boolean hasManifest = false, hasDex = false, traversal = false, nestedExecutable = false;
             long expandedBytes = 0;
-
             if (zipMagic) {
-                try (InputStream raw = getContentResolver().openInputStream(uri);
-                     ZipInputStream zip = new ZipInputStream(new BufferedInputStream(raw))) {
+                try (InputStream raw = getContentResolver().openInputStream(uri)) {
                     if (raw == null) throw new IllegalStateException("Cannot reopen selected file");
-                    ZipEntry entry;
-                    while ((entry = zip.getNextEntry()) != null) {
-                        entries++;
-                        if (entries > MAX_ARCHIVE_ENTRIES) {
-                            findings.add("Archive entry limit exceeded; deeper inspection stopped.");
-                            break;
-                        }
-                        String path = entry.getName();
-                        String normalized = path.replace('\\', '/');
-                        if (normalized.startsWith("/") || normalized.contains("../") || normalized.equals("..")) traversal = true;
-                        String pathLower = normalized.toLowerCase(Locale.ROOT);
-                        if (pathLower.equals("androidmanifest.xml")) hasManifest = true;
-                        if (pathLower.matches("classes([0-9]+)?\\.dex")) hasDex = true;
-                        if (pathLower.endsWith(".apk") || pathLower.endsWith(".dex") || pathLower.endsWith(".jar")) nestedExecutable = true;
-                        int read;
-                        while ((read = zip.read(buffer)) != -1) {
-                            expandedBytes += read;
-                            if (expandedBytes > MAX_FILE_BYTES) {
-                                findings.add("Expanded archive data exceeded 100 MB; inspection stopped to limit resource use.");
+                    try (ZipInputStream zip = new ZipInputStream(new BufferedInputStream(raw))) {
+                        ZipEntry entry;
+                        while ((entry = zip.getNextEntry()) != null) {
+                            entries++;
+                            if (entries > MAX_ARCHIVE_ENTRIES) {
+                                findings.add("Archive entry limit exceeded; deeper inspection stopped.");
                                 break;
                             }
+                            String path = entry.getName().replace('\\', '/');
+                            if (path.startsWith("/") || path.contains("../") || path.equals("..")) traversal = true;
+                            String pathLower = path.toLowerCase(Locale.ROOT);
+                            if (pathLower.equals("androidmanifest.xml")) hasManifest = true;
+                            if (pathLower.matches("classes([0-9]+)?\\.dex")) hasDex = true;
+                            if (pathLower.endsWith(".apk") || pathLower.endsWith(".dex") || pathLower.endsWith(".jar")) nestedExecutable = true;
+                            int read;
+                            while ((read = zip.read(buffer)) != -1) {
+                                expandedBytes += read;
+                                if (expandedBytes > MAX_FILE_BYTES) {
+                                    findings.add("Expanded archive data exceeded 100 MB; inspection stopped.");
+                                    break;
+                                }
+                            }
+                            zip.closeEntry();
+                            if (expandedBytes > MAX_FILE_BYTES) break;
                         }
-                        zip.closeEntry();
-                        if (expandedBytes > MAX_FILE_BYTES) break;
                     }
                 } catch (Exception archiveError) {
                     findings.add("Archive could not be fully inspected: " + archiveError.getClass().getSimpleName());
                 }
                 if (traversal) findings.add("Archive contains a path-traversal-like entry name.");
                 if (nestedExecutable) findings.add("Archive contains nested executable or application package files.");
-                if (apkName && hasManifest && hasDex) findings.add("APK-like structure found (AndroidManifest.xml and DEX file). This is not a malware verdict.");
+                if (apkName && hasManifest && hasDex) findings.add("APK-like structure found; this is not a malware verdict.");
                 else if (apkName) findings.add("APK structure was not fully confirmed by the basic archive check.");
                 findings.add("Archive entries inspected: " + entries);
             }
 
-            String level = findings.isEmpty() ? "No basic structural warning found" : "Review recommended";
             StringBuilder result = new StringBuilder();
-            result.append("Local file analysis complete\nName: ").append(name)
-                    .append("\nSize: ").append(total).append(" bytes")
-                    .append("\nSHA-256: ").append(hex)
-                    .append("\nContent signature: ").append(zipMagic ? "ZIP-compatible" : "Not recognized as ZIP");
-            result.append("\nLocal hash signature database: ").append(signatureMatch == null ? "No match" : "MATCH — " + signatureMatch);
-            result.append("\nYARA-X rule scan: ").append(yaraResult);
-            result.append("\nAssessment: ").append(level);
+            result.append("File: ").append(name).append("\nSize: ").append(total).append(" bytes")
+                  .append("\nSHA-256: ").append(hex)
+                  .append("\nLocal hash indicators: ").append(signatureMatch == null ? "No exact match" : "MATCH — " + signatureMatch)
+                  .append("\nYARA-X: ").append(yaraResult)
+                  .append("\nStructural indicators: ").append(findings.size());
             for (String finding : findings) result.append("\n• ").append(finding);
-            if (findings.isEmpty()) result.append("\nNo basic structural indicators were found. This does NOT prove the file is safe.");
-            result.append("\nNo upload, modification, or deletion was performed.");
-
+            if (findings.isEmpty()) result.append("\nNo basic structural warning found. This does not prove the file is safe.");
+            result.append("\n\nNo upload, modification or deletion was performed.");
             String finalResult = result.toString();
             runOnUiThread(() -> {
-                heading("Selected file result");
-                content.addView(text(finalResult, 13, findings.isEmpty() ? 0xFFB7C2D8 : 0xFFFFD28A));
-                status.setText("Local file analysis finished.");
+                finishBusy("File analysis finished on this device.");
+                showResult("File analysis result", finalResult, !findings.isEmpty() || (signatureMatch != null));
             });
         } catch (Exception e) {
-            runOnUiThread(() -> status.setText("File check failed: " + e.getMessage()));
+            runOnUiThread(() -> {
+                finishBusy("File analysis could not be completed.");
+                showResult("File check failed", e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()), true);
+            });
         }
     }
 
     private void showLimits() {
-        heading("Detection limits");
-        content.addView(text("This version can list visible installed apps, review declared permissions, calculate a selected file's SHA-256, compare it with a bundled local hash-signature database, run starter YARA-X rules on selected files up to 32 MiB, and inspect basic ZIP/APK archive structure. The bundled database currently contains an EICAR antivirus test-file indicator only; it is not a real malware feed and the EICAR test file is not malware. It does not execute files in a sandbox. It cannot inspect other apps' private data, prove spyware is absent, or monitor every runtime action. Android's app sandbox restricts these capabilities. Findings are informational and require human review. No files are deleted.", 14, 0xFFB7C2D8));
+        resultsContainer.removeAllViews();
+        String limits = "CURRENT CAPABILITIES\n• Visible installed-app inventory and selected permission-declaration review.\n• User-selected file SHA-256 and exact local hash matching.\n• Bundled YARA-X validation rules for files up to 32 MiB.\n• Basic ZIP/APK structure inspection.\n\nIMPORTANT LIMITS\n• The bundled hash database currently contains only the harmless EICAR test-file indicator.\n• Starter YARA rules are validation rules, not a production malware rule pack.\n• EICAR is a harmless antivirus test pattern, not malware.\n• Android sandboxing prevents this normal app from inspecting other apps' private data or all runtime behavior.\n• Permission declarations are review indicators, not proof of spying.\n• No real-time background threat monitor, quarantine, AI model, cloud threat feed or enterprise SOC backend is implemented yet.\n\nPrivacy: no account, no upload and no automatic deletion. Findings require human review.";
+        showResult("Detection limits & app information", limits, false);
     }
 }
