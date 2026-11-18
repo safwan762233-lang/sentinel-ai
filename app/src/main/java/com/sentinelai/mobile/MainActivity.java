@@ -279,6 +279,6 @@ public class MainActivity extends Activity {
 
     private void showLimits() {
         heading("Detection limits");
-        content.addView(text("This version can list visible installed apps, review declared permissions, calculate a selected file's SHA-256, compare it with a bundled local hash-signature database, and inspect basic ZIP/APK archive structure. The bundled database currently contains an EICAR antivirus test-file indicator only; it is not a real malware feed and the EICAR test file is not malware. It does not execute files in a sandbox. It cannot inspect other apps' private data, prove spyware is absent, or monitor every runtime action. Android's app sandbox restricts these capabilities. Findings are informational and require human review. No files are deleted.", 14, 0xFFB7C2D8));
+        content.addView(text("This version can list visible installed apps, review declared permissions, calculate a selected file's SHA-256, compare it with a bundled local hash-signature database, run starter YARA-X rules on selected files up to 32 MiB, and inspect basic ZIP/APK archive structure. The bundled database currently contains an EICAR antivirus test-file indicator only; it is not a real malware feed and the EICAR test file is not malware. It does not execute files in a sandbox. It cannot inspect other apps' private data, prove spyware is absent, or monitor every runtime action. Android's app sandbox restricts these capabilities. Findings are informational and require human review. No files are deleted.", 14, 0xFFB7C2D8));
     }
 }
