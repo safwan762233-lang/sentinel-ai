@@ -1,6 +1,7 @@
 package com.sentinelai.mobile;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -15,6 +16,7 @@ import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -27,6 +29,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.io.File;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -50,6 +57,7 @@ public class MainActivity extends Activity {
     private ProgressBar progress;
     private Button appsButton;
     private Button fileButton;
+    private File pendingRestoreFile;
 
     private static final String[] REVIEW_PERMISSIONS = {
         "android.permission.RECORD_AUDIO", "android.permission.CAMERA",
@@ -166,6 +174,13 @@ public class MainActivity extends Activity {
         fileButton = actionButton("Analyze a file", "Check a file you choose: SHA-256, YARA-X and archive structure", false, v -> pickFile());
         scanCard.addView(fileButton);
 
+        LinearLayout monitorCard = card();
+        monitorCard.addView(label("PROTECTION TOOLS", 11, CYAN, true));
+        gap(monitorCard, 8);
+        monitorCard.addView(actionButton("Enable periodic review", "Permission-declaration checks; Android may delay background work", false, v -> enableMonitoring()));
+        gap(monitorCard, 8);
+        monitorCard.addView(actionButton("Restore quarantined copy", "Export a held copy to a location you choose", false, v -> chooseQuarantineCopy()));
+
         LinearLayout info = card();
         info.addView(label("WHAT THIS VERSION CAN CHECK", 11, CYAN, true));
         gap(info, 10);
@@ -272,6 +287,7 @@ public class MainActivity extends Activity {
                 }
                 for (PackageInfo info : packages) {
                     if (info.requestedPermissions == null) continue;
+                    PermissionRiskAnalyzer.Result risk = PermissionRiskAnalyzer.analyze(info);
                     List<String> matched = new ArrayList<>();
                     for (String permission : info.requestedPermissions) {
                         for (String sensitive : REVIEW_PERMISSIONS) {
@@ -283,7 +299,8 @@ public class MainActivity extends Activity {
                         try { appLabel = pm.getApplicationLabel(info.applicationInfo).toString(); }
                         catch (Exception e) { appLabel = info.packageName; }
                         findings.add(appLabel + " (" + info.packageName + ")\nDeclared: " + join(matched)
-                                + "\nPermission declarations need context; they do not prove misuse.");
+                                + "\nEvidence review score: " + risk.score + "/100 (" + risk.level + ")"
+                                + "\nThis score counts selected declarations only; it is not a spyware verdict.");
                     }
                 }
                 Collections.sort(findings);
@@ -325,6 +342,17 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 42 && resultCode == RESULT_OK && data != null && data.getData() != null && pendingRestoreFile != null) {
+            File file = pendingRestoreFile;
+            pendingRestoreFile = null;
+            try {
+                QuarantineStore.restore(this, file, data.getData());
+                Toast.makeText(this, "Copy restored. Private quarantine copy retained.", Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Restore failed: " + e.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if (requestCode != PICK_FILE || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         setBusy("Analyzing your selected file locally…");
@@ -428,6 +456,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 finishBusy("File analysis finished on this device.");
                 showResult("File analysis result", finalResult, !findings.isEmpty() || (signatureMatch != null));
+                addQuarantineAction(uri, name);
             });
         } catch (Exception e) {
             runOnUiThread(() -> {
@@ -435,6 +464,61 @@ public class MainActivity extends Activity {
                 showResult("File check failed", e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()), true);
             });
         }
+    }
+
+
+    private void enableMonitoring() {
+        new AlertDialog.Builder(this).setTitle("Enable periodic review?")
+            .setMessage("Sentinel periodically reviews visible installed-app permission declarations and may send a notification. Android can delay this work. It does not monitor every app action.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Enable", (dialog, which) -> {
+                PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ThreatMonitorWorker.class, 15, TimeUnit.MINUTES).build();
+                WorkManager.getInstance(this).enqueueUniquePeriodicWork("sentinel-periodic-review", ExistingPeriodicWorkPolicy.UPDATE, request);
+                Toast.makeText(this, "Periodic review enabled. Android may delay checks.", Toast.LENGTH_LONG).show();
+            }).show();
+    }
+
+    private void addQuarantineAction(Uri source, String name) {
+        Button b = actionButton("Quarantine a copy", "Save a private copy; original will NOT be deleted", false, v ->
+            new AlertDialog.Builder(this).setTitle("Save quarantine copy?")
+                .setMessage("This copies the selected file into Sentinel private storage. The original stays where it is. This is not OS-level malware isolation. Continue?")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save copy", (dialog, which) -> new Thread(() -> {
+                    try {
+                        File saved = QuarantineStore.copyIntoQuarantine(this, source, name);
+                        runOnUiThread(() -> {
+                            finishBusy("Private copy saved.");
+                            showResult("Quarantine copy saved", "Stored privately: " + saved.getName() + "\\nOriginal file was not moved or deleted. Use Restore quarantined copy to export it. Uninstalling Sentinel removes this copy.", false);
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(() -> {
+                            finishBusy("Could not save copy.");
+                            showResult("Quarantine failed", e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()), true);
+                        });
+                    }
+                }).start()).show());
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.topMargin = dp(10);
+        resultsContainer.addView(b, p);
+    }
+
+    private void chooseQuarantineCopy() {
+        File dir = new File(getFilesDir(), "quarantine");
+        File[] files = dir.listFiles();
+        if (files == null || files.length == 0) {
+            Toast.makeText(this, "No quarantined copies found.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] names = new String[files.length];
+        for (int i = 0; i < files.length; i++) names[i] = files[i].getName();
+        new AlertDialog.Builder(this).setTitle("Choose a copy to restore").setItems(names, (dialog, which) -> {
+            pendingRestoreFile = files[which];
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_TITLE, files[which].getName());
+            startActivityForResult(intent, 42);
+        }).setNegativeButton("Cancel", null).show();
     }
 
     private void showLimits() {
