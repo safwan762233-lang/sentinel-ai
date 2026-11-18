@@ -198,6 +198,7 @@ public class MainActivity extends Activity {
             StringBuilder hex = new StringBuilder();
             for (byte b : digest.digest()) hex.append(String.format(Locale.US, "%02x", b));
             String signatureMatch = LocalHashSignatures.lookup(this, hex.toString());
+            String yaraResult = YaraEngine.scanSelectedFile(this, uri);
 
             boolean zipMagic = firstByte == 0x50 && secondByte == 0x4b;
             boolean apkName = lower.endsWith(".apk");
@@ -259,6 +260,7 @@ public class MainActivity extends Activity {
                     .append("\nSHA-256: ").append(hex)
                     .append("\nContent signature: ").append(zipMagic ? "ZIP-compatible" : "Not recognized as ZIP");
             result.append("\nLocal hash signature database: ").append(signatureMatch == null ? "No match" : "MATCH — " + signatureMatch);
+            result.append("\nYARA-X rule scan: ").append(yaraResult);
             result.append("\nAssessment: ").append(level);
             for (String finding : findings) result.append("\n• ").append(finding);
             if (findings.isEmpty()) result.append("\nNo basic structural indicators were found. This does NOT prove the file is safe.");
