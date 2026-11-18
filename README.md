@@ -7,11 +7,14 @@
 ## Current Android features
 - Redesigned mobile-first dashboard with clear scan actions, readable status, and a dedicated latest-result panel. It intentionally avoids fabricated security scores or threat counters.
 - Inventory installed apps visible through Android's package visibility API.
-- Review selected high-impact permission declarations.
+- Review selected high-impact permission declarations and produce an explainable indicator score from declarations only (not a spyware verdict).
 - Select a file through Android's Storage Access Framework and calculate SHA-256 locally.
 - Run the bundled YARA-X native engine against user-selected files up to 32 MiB using starter validation rules (EICAR test string and a harmless internal marker). These are test rules, not production malware signatures.
 - Check basic ZIP/APK archive structure, including extension/signature mismatch, APK-like manifest/DEX entries, nested executable archives, and path-traversal-like names.
 - Apply file size and archive-entry limits to reduce resource-exhaustion risk.
+- Opt-in periodic permission-declaration review using Android WorkManager; Android may defer execution and this is not real-time runtime monitoring.
+- User-confirmed quarantine COPY into app-private storage, with user-selected restore/export. The original is never removed; this is not OS-level isolation, and uninstalling the app removes the private copy.
+- Deterministic offline evidence correlation combines configured hash/YARA/structure indicators into an explainable review assessment. This is rules-based logic, not a trained AI model.
 - No account, no upload, no automatic deletion.
 
 ## Get the Android debug APK
@@ -43,18 +46,18 @@ APK output: `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Roadmap and implementation status
 - [x] Android app inventory and selected permission-declaration review.
+- [x] Explainable spyware-risk review indicators based on declared permissions only; no runtime spyware detection claim.
 - [x] User-selected file SHA-256 and basic ZIP/APK structure inspection.
-- [x] YARA-X native integration with starter validation rules (not production threat rules).
-- [x] Mobile dashboard and scan-result UI refresh.
-- [ ] Production-grade malware signature and YARA rule packs from vetted, licensed sources; signed updates and expiry checks.
-- [ ] Spyware risk review based only on Android-supported, consented signals; no claims to inspect other apps' private data.
-- [ ] User-approved quarantine for files the app can access, with restore and integrity checks. No automatic deletion.
-- [ ] Background monitoring using Android-supported APIs and foreground-service restrictions; requires battery/privacy design.
-- [ ] Actual on-device threat-intelligence model or clearly defined rules-based analysis. No AI model is currently shipped.
-- [ ] Enterprise SOC dashboard, device enrollment, RBAC, audit trail, alert pipeline and authorized device-management agent. This requires a separately deployed backend and managed-device permissions.
+- [x] YARA-X native integration with harmless starter validation rules (not a production malware rule pack).
+- [x] User-approved quarantine COPY to app-private storage and user-selected restore/export. Original files are never deleted; private copies are removed if the app is uninstalled.
+- [x] Opt-in periodic permission-declaration review using WorkManager. Android battery/background limits may delay checks; it does not inspect all app behavior.
+- [x] Local deterministic evidence correlation for explainable risk assessment. This is not a trained AI model or self-learning threat intelligence.
+- [ ] Production-grade malware signatures and YARA rules from vetted, licensed sources; signed rule-pack updates, expiry and provenance checks.
+- [ ] Actual on-device AI model and validated threat-intelligence ingestion pipeline. No ML model or live threat feed is shipped.
+- [ ] Enterprise SOC dashboard, server API, tenant isolation, RBAC, audit trail, alert pipeline and secure device enrollment. Requires a separately deployed and secured backend.
+- [ ] Enterprise device management and incident response agent. Full device controls require Android Enterprise managed-device/device-owner provisioning and organizational authorization; this consumer app does not have those privileges.
 - [ ] Independent security/privacy review and production release signing.
 
-Features marked [ ] are not implemented yet and must not be represented as available in the app.
-
+Features marked [ ] are not implemented and must not be represented as available.
 ## Open-source policy
 Dependencies and engines must be reviewed for license, provenance, maintenance, and security before integration. Third-party components retain their original licenses and notices.
