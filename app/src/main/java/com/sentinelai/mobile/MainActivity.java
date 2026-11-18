@@ -468,6 +468,11 @@ public class MainActivity extends Activity {
 
 
     private void enableMonitoring() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 77);
+            Toast.makeText(this, "Allow notifications, then tap Enable periodic review again.", Toast.LENGTH_LONG).show();
+            return;
+        }
         new AlertDialog.Builder(this).setTitle("Enable periodic review?")
             .setMessage("Sentinel periodically reviews visible installed-app permission declarations and may send a notification. Android can delay this work. It does not monitor every app action.")
             .setNegativeButton("Cancel", null)
