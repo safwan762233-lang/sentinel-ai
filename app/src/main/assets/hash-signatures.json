@@ -1,0 +1,15 @@
+{
+  "format": "sentinel-hash-intel-v1",
+  "version": 1,
+  "updated_utc": "2026-11-18T00:00:00Z",
+  "source_note": "Starter verification pack. Contains only the EICAR antivirus test-file hash. EICAR is a harmless test pattern, not malware and not a real malware threat feed.",
+  "signatures": [
+    {
+      "sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+      "name": "EICAR Anti-Malware Test File",
+      "classification": "test_signature",
+      "severity": "informational",
+      "note": "Recognized antivirus test pattern. This match verifies local hash matching; EICAR is not malware."
+    }
+  ]
+}
