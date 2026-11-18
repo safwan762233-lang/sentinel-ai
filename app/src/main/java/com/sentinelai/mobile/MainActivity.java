@@ -449,6 +449,9 @@ public class MainActivity extends Activity {
                   .append("\nLocal hash indicators: ").append(signatureMatch == null ? "No exact match" : "MATCH — " + signatureMatch)
                   .append("\nYARA-X: ").append(yaraResult)
                   .append("\nStructural indicators: ").append(findings.size());
+            ThreatIntelligenceEngine.Assessment assessment = ThreatIntelligenceEngine.assess(0, signatureMatch != null, yaraResult, findings.size());
+            result.append("\nLocal evidence assessment: ").append(assessment.level);
+            for (String evidence : assessment.evidence) result.append("\nEvidence: ").append(evidence);
             for (String finding : findings) result.append("\n• ").append(finding);
             if (findings.isEmpty()) result.append("\nNo basic structural warning found. This does not prove the file is safe.");
             result.append("\n\nNo upload, modification or deletion was performed.");
