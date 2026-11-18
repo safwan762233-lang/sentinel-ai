@@ -191,9 +191,9 @@ public class MainActivity extends Activity {
 
         LinearLayout privacy = card();
         privacy.addView(label("PRIVATE BY DESIGN", 14, TEXT, true));
-        gap(5);
+        gap(privacy, 5);
         privacy.addView(label("No account • No cloud upload • No automatic deletion", 12, MUTED, false));
-        gap(8);
+        gap(privacy, 8);
         privacy.addView(label("A clean result does not prove a device or file is malware-free. Android limits what a normal app can inspect.", 12, MUTED, false));
 
         TextView limits = label("Detection limits & app information  →", 13, CYAN, true);
