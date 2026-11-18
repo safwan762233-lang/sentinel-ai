@@ -197,6 +197,7 @@ public class MainActivity extends Activity {
             }
             StringBuilder hex = new StringBuilder();
             for (byte b : digest.digest()) hex.append(String.format(Locale.US, "%02x", b));
+            String signatureMatch = LocalHashSignatures.lookup(this, hex.toString());
 
             boolean zipMagic = firstByte == 0x50 && secondByte == 0x4b;
             boolean apkName = lower.endsWith(".apk");
@@ -257,6 +258,7 @@ public class MainActivity extends Activity {
                     .append("\nSize: ").append(total).append(" bytes")
                     .append("\nSHA-256: ").append(hex)
                     .append("\nContent signature: ").append(zipMagic ? "ZIP-compatible" : "Not recognized as ZIP");
+            result.append("\nLocal hash signature database: ").append(signatureMatch == null ? "No match" : "MATCH — " + signatureMatch);
             result.append("\nAssessment: ").append(level);
             for (String finding : findings) result.append("\n• ").append(finding);
             if (findings.isEmpty()) result.append("\nNo basic structural indicators were found. This does NOT prove the file is safe.");
@@ -275,6 +277,6 @@ public class MainActivity extends Activity {
 
     private void showLimits() {
         heading("Detection limits");
-        content.addView(text("This version can list visible installed apps, review declared permissions, calculate a selected file's SHA-256, and inspect basic ZIP/APK archive structure. It does not use a malware signature database or execute files in a sandbox. It cannot inspect other apps' private data, prove spyware is absent, or monitor every runtime action. Android's app sandbox restricts these capabilities. Findings are informational and require human review. No files are deleted.", 14, 0xFFB7C2D8));
+        content.addView(text("This version can list visible installed apps, review declared permissions, calculate a selected file's SHA-256, compare it with a bundled local hash-signature database, and inspect basic ZIP/APK archive structure. The bundled database currently contains an EICAR antivirus test-file indicator only; it is not a real malware feed and the EICAR test file is not malware. It does not execute files in a sandbox. It cannot inspect other apps' private data, prove spyware is absent, or monitor every runtime action. Android's app sandbox restricts these capabilities. Findings are informational and require human review. No files are deleted.", 14, 0xFFB7C2D8));
     }
 }
