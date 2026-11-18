@@ -8,6 +8,7 @@
 - Inventory installed apps visible through Android's package visibility API.
 - Review selected high-impact permission declarations.
 - Select a file through Android's Storage Access Framework and calculate SHA-256 locally.
+- Run the bundled YARA-X native engine against user-selected files up to 32 MiB using starter validation rules (EICAR test string and a harmless internal marker). These are test rules, not production malware signatures.
 - Check basic ZIP/APK archive structure, including extension/signature mismatch, APK-like manifest/DEX entries, nested executable archives, and path-traversal-like names.
 - Apply file size and archive-entry limits to reduce resource-exhaustion risk.
 - No account, no upload, no automatic deletion.
@@ -21,7 +22,7 @@
 The debug APK is for testing, not a production-signed release. Do not distribute it as an enterprise security product.
 
 ## Build locally
-Requirements: JDK 17, Android SDK Platform 35, and Gradle 8.9.
+Requirements: JDK 17, Android SDK Platform 35, Android NDK 27.2.12479018, Rust stable with Android targets, cargo-ndk, and Gradle 8.9.
 
 ```bash
 gradle assembleDebug
@@ -34,13 +35,14 @@ APK output: `app/build/outputs/apk/debug/app-debug.apk`.
 - A declared permission is a review indicator, not evidence of spying.
 - The file picker only grants access to files the user selects.
 - ZIP/APK structure checks are heuristic. A valid-looking archive may still be malicious; an unusual archive is not automatically malicious.
+- The starter YARA-X pack currently contains only harmless validation rules (EICAR test string and a Sentinel marker); it is not a real malware rule pack. YARA-X is a separate engine from classic YARA, designed for high compatibility, not perfect compatibility.
 - The starter hash pack currently contains only the EICAR antivirus test-file hash. EICAR is a harmless test pattern, not malware; this validates the matching engine but is not a real malware threat feed. The app has no dynamic sandbox, cloud reputation lookup, or guaranteed detection.
 - `QUERY_ALL_PACKAGES` is sensitive and subject to Google Play policy review. Distribution may need a narrower app-visibility design.
 - Enterprise EDR/SIEM capabilities require separately deployed, authorized agents and backend services.
 
 ## Roadmap
 1. Android app inventory and local file structure checks (current MVP).
-2. Expand the hash/signature intelligence pack using vetted, licensed indicators; add pack authenticity/expiry checks and a user-approved safe quarantine workflow.
+2. Expand the YARA-X rules and local hash intelligence using vetted, licensed indicators; add rule-pack authenticity/expiry checks and a user-approved safe quarantine workflow.
 3. Behavior signals supported by Android APIs, with explicit consent.
 4. Enterprise backend, device enrollment, RBAC, audit trail, alert pipeline.
 5. Independent security review, privacy review, and production release signing.
